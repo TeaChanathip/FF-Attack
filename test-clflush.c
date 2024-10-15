@@ -2,18 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-static inline void clflush(void *v)
-{
-    asm volatile("clflush 0(%0); mfence" ::"r"(v) : "memory");
-}
-
-static inline uint32_t rdtscp()
-{
-    uint32_t rv;
-    asm volatile("mfence; rdtscp" : "=a"(rv)::"edx", "memory");
-    return rv;
-}
+#include <x86intrin.h>
 
 void dummy()
 {
@@ -21,14 +10,52 @@ void dummy()
     x++;
 }
 
-uint32_t mean(uint32_t *arr, int n)
+unsigned long long mean(unsigned long long *arr, int n)
 {
-    uint64_t avg = 0;
+    unsigned long long avg = 0;
     for (int i = 0; i < n; i++)
     {
-        avg += (uint64_t)arr[i];
+        avg += arr[i];
     }
-    return (uint32_t)(avg / n);
+    return avg/n;
+}
+
+void test_miss(void *dummy_ptr, int n)
+{
+    unsigned long long results[n];
+    unsigned int aux;
+
+    _mm_clflush(dummy_ptr);
+    _mm_mfence();
+    for (int i=0; i<n; i++)
+    {   
+        unsigned long long start = __rdtscp(&aux);
+        _mm_clflush(dummy_ptr);
+        _mm_mfence();
+        unsigned long long stop = __rdtscp(&aux);
+        results[i] = stop - start;
+    }
+    
+    printf("Mean Miss: %llu\n", mean(results, n));
+}
+
+void test_hit(void *dummy_ptr, int n)
+{
+    unsigned long long results[n];
+    unsigned int aux;
+
+    for (int i=0; i<n; i++)
+    {   
+        dummy();
+        _mm_mfence();
+        unsigned long long start = __rdtscp(&aux);
+        _mm_clflush(dummy_ptr);
+        _mm_mfence();
+        unsigned long long stop = __rdtscp(&aux);
+        results[i] = stop - start;
+    }
+    
+    printf("Mean Hit: %llu\n", mean(results, n));
 }
 
 int main(int argc, char *argv[])
@@ -44,33 +71,8 @@ int main(int argc, char *argv[])
     // Get the address of the dummy function
     void (*dummy_ptr)() = dummy;
 
-    uint32_t results[n];
-
-    // Test1: Cache Miss
-    clflush(dummy_ptr);
-    for (int i = 0; i < n; i++)
-    {
-        uint32_t start = rdtscp();
-        clflush(dummy_ptr);
-        uint32_t stop = rdtscp();
-        results[i] = stop - start;
-    }
-    uint32_t miss = mean(results, n);
-    printf("Miss: \t%u\n", miss);
-
-    // Test2: Cache Hit
-    for (int i = 0; i < n; i++)
-    {
-        dummy();
-        uint32_t start = rdtscp();
-        clflush(dummy_ptr);
-        uint32_t stop = rdtscp();
-        results[i] = stop - start;
-    }
-    uint32_t hit = mean(results, n);
-    printf("Hit: \t%u\n", hit);
-
-    printf("Diff: \t%d\n", hit - miss);
+    test_miss(dummy_ptr, n);
+    test_hit(dummy_ptr, n);
 
     return 0;
 }

@@ -5,13 +5,13 @@
 
 static inline void clflush(void *v)
 {
-    asm volatile("clflush 0(%0)" : : "r"(v) :);
+    asm volatile("clflush 0(%0); mfence" ::"r"(v) : "memory");
 }
 
-static inline uint32_t rdtsc()
+static inline uint32_t rdtscp()
 {
     uint32_t rv;
-    asm volatile("rdtsc" : "=a"(rv)::"edx");
+    asm volatile("mfence; rdtscp" : "=a"(rv)::"edx", "memory");
     return rv;
 }
 
@@ -26,7 +26,7 @@ uint32_t mean(uint32_t *arr, int n)
     uint64_t avg = 0;
     for (int i = 0; i < n; i++)
     {
-        avg += arr[i];
+        avg += (uint64_t)arr[i];
     }
     return (uint32_t)(avg / n);
 }
@@ -50,9 +50,9 @@ int main(int argc, char *argv[])
     clflush(dummy_ptr);
     for (int i = 0; i < n; i++)
     {
-        uint32_t start = rdtsc();
+        uint32_t start = rdtscp();
         clflush(dummy_ptr);
-        uint32_t stop = rdtsc();
+        uint32_t stop = rdtscp();
         results[i] = stop - start;
     }
     uint32_t miss = mean(results, n);
@@ -62,9 +62,9 @@ int main(int argc, char *argv[])
     for (int i = 0; i < n; i++)
     {
         dummy();
-        uint64_t start = rdtsc();
+        uint32_t start = rdtscp();
         clflush(dummy_ptr);
-        uint64_t stop = rdtsc();
+        uint32_t stop = rdtscp();
         results[i] = stop - start;
     }
     uint32_t hit = mean(results, n);

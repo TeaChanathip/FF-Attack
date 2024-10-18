@@ -1,4 +1,11 @@
+# binary
 *
 !*.*
-.vscode/
+!src/
+*.o
+
+# dump
 *.asm
+
+.vscode/
+.results/

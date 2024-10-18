@@ -10,26 +10,35 @@
 #include <mastik/ff.h>
 #include <mastik/util.h>
 
-#define SAMPLES 2000
-#define SLOT 2000
-#define THRESHOLD 300
+#define SAMPLES 10000
+#define SLOT 900
+#define THRESHOLD 500
 
-void dummy()
+void dummy1()
 {
-    int i = 1, j = 2;
-    i = i + 1;
-    j = j + 2;
+    int i = 1;
+    i += 1;
+}
+
+void dummy2()
+{
+    int j = 2;
+    j += 2;
 }
 
 void victim(unsigned char *binData, size_t binSize)
 {
+    // void (*dummy_ptr)() = dummy;
+    // printf("%lu\n", (uint64_t) dummy_ptr);
+
     for (size_t i = 0; i < binSize; i++)
     {
         for (int j = 7; j >= 0; j--)
         {
+            dummy1();
             if (binData[i] & (1 << j))
             {
-                dummy();
+                dummy2();
             }
         }
     }
@@ -37,13 +46,17 @@ void victim(unsigned char *binData, size_t binSize)
 
 void attacker()
 {
-    void (*dummy_ptr)() = dummy;
+    void (*dummy1_ptr)() = dummy1;
+    void (*dummy2_ptr)() = dummy2;
+    // printf("%lu\n", (uint64_t) dummy_ptr);
 
     ff_t ff = ff_prepare();
-    ff_monitor(ff, dummy_ptr);
+    int n_monitor = 2;
+    ff_monitor(ff, dummy1_ptr);
+    ff_monitor(ff, dummy2_ptr);
 
-    uint16_t *res = malloc(SAMPLES * sizeof(uint16_t));
-    for (int i = 0; i < SAMPLES; i += 4096 / sizeof(uint16_t))
+    uint16_t *res = malloc(SAMPLES * n_monitor * sizeof(uint16_t));
+    for (int i = 0; i < SAMPLES*n_monitor; i += 4096 / sizeof(uint16_t))
         res[i] = 1;
     ff_probe(ff, res);
 
@@ -54,7 +67,11 @@ void attacker()
     } while (l < 1000);
     for (int i = 0; i < l; i++)
     {
-        printf("%d\n", res[i]);
+        for (int j = 0; j < n_monitor; j++)
+        {
+            printf("%d ", res[i * n_monitor + j]);
+        }
+        printf("\n");
     }
 
     free(res);
@@ -160,7 +177,7 @@ int main()
         unsigned char *binData = cvtHex2bin(buffer, &binSize);
         // printf("Binary data size: %zu\n", binSize);
 
-        delayloop(100000000);
+        delayloop(1000000);
         victim(binData, binSize);
         free(buffer);
         free(binData);

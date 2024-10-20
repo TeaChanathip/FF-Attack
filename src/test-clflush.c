@@ -91,7 +91,16 @@ volatile void perform_test(int n)
     for (int i = 0; i < n; i++)
     {
         delayloop(1000);
-        dummy(); // Make sure that dummy will be in the cache
+
+        // Make sure that dummy will be in the cache
+        asm volatile("movq (%0), %%rax\n"
+                     :
+                     : "c"(dummy_ptr)
+                     : "rax");
+        asm volatile("movq (%0), %%rax\n"
+                     :
+                     : "c"(dummy_ptr)
+                     : "rax");
 
         // Test hit
         asm volatile(
@@ -104,8 +113,7 @@ volatile void perform_test(int n)
             "rdtscp\n"
             "lfence\n"
             "sub %%esi, %%eax\n"
-            : "=&a" (hit_results[i]): "r" (dummy_ptr): "ecx", "edx", "esi"
-        );
+            : "=&a"(hit_results[i]) : "r"(dummy_ptr) : "ecx", "edx", "esi");
 
         // Make sure that dummy will NOT be in the cache
         _mm_clflush(dummy_ptr);
@@ -122,8 +130,7 @@ volatile void perform_test(int n)
             "rdtscp\n"
             "lfence\n"
             "sub %%esi, %%eax\n"
-            : "=&a" (miss_results[i]): "r" (dummy_ptr): "ecx", "edx", "esi"
-        );
+            : "=&a"(miss_results[i]) : "r"(dummy_ptr) : "ecx", "edx", "esi");
     }
 
     // Caculate Min, Max, Mean, Median, Variance of each result arrays

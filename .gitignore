@@ -2,10 +2,7 @@
 !*.*
 !*/
 *.o
-
-.vscode/
-
-# Assembly
 *.asm
 
+.vscode/
 !Makefile

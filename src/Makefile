@@ -1,25 +1,27 @@
-FILES = \
-	test-clflush.c \
-	ff-simulate.c
+FILES= \
+       test-clflush.c \
+       ff-simulate.c \
 
-prefix=/usr/local
-exec_prefix=${prefix}
-
-FTARGETS=$(FILES:.c=)
+FTARGETS=${FILES:.c=}
 FOBJS=${FILES:.c=.o}
-CFLAGS=-g -O0   -I..
-LDFLAGS=-L../src/ -g
+CFLAGS=-g -O2
 LDLIBS=-lmastik
 
-TARGETS=${FTARGETS}
-OBJS=${FOBJS}
+TARGETS=${FTARGETS} ff-aes-ttable
 
-all: ${TARGETS}
+all: aes_core ${TARGETS}
 
-install:
+aes_core:
+	cc -O2 -c ../tests/aes_core.c -o ../tests/aes_core.o
 
-${FTARGETS}: %: %.o 
-	${CC} ${LDFLAGS} -o $@ $@.o ${LDLIBS} ${CFLAGS}
+${FTARGETS}: %: %.o
+	gcc ${CFLAGS} -o $@ $@.o ${LDLIBS}
+
+ff-aes-ttable:
+	g++ ${CFLAGS} -c ff-aes-ttable.cpp
+	g++ ${CFLAGS} -o ff-aes-ttable ff-aes-ttable.o ../tests/aes_core.o -I../tests/
 
 clean:
-	rm -f ${TARGETS} ${OBJS}
+	rm -f ${FTARGETS} ${FOBJS}
+	rm -f ff-aes-ttable ff-aes-ttable.o
+	rm -f ../tests/aes_core.o

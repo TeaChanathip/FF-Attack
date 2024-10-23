@@ -1,12 +1,11 @@
-# binary
 *
 !*.*
-!src/
-!Makefile
+!*/
 *.o
 
-# dump
+.vscode/
+
+# Assembly
 *.asm
 
-.vscode/
-.results/
+!Makefile

@@ -1,4 +1,3 @@
-// This is for testing if clflush is constant cycle instruction
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

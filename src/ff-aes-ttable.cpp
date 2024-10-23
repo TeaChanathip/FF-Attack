@@ -100,7 +100,7 @@ int main()
         size_t time = __rdtscp(&__A);
         _mm_clflush(probe);
         _mm_mfence();
-        size_t delta = __rdtscp(&__A);
+        size_t delta = __rdtscp(&__A) - time;
 
         if (delta >= MIN_CACHE_HIT_CYCLES
                      + ((probe-base == te3 || probe-base == te2 || probe-base == te1 || probe-base == te0)? 0 : -6))

